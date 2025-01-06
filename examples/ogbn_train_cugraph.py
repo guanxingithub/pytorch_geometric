@@ -1,11 +1,11 @@
 import argparse
-import time
 import os
 import os.path as osp
 import tempfile
+import time
 
-import psutil
 import cupy
+import psutil
 import rmm
 import torch
 from rmm.allocators.cupy import rmm_cupy_allocator
@@ -28,12 +28,14 @@ enable_spilling()
 
 from ogb.nodeproppred import PygNodePropPredDataset  # noqa
 from tqdm import tqdm  # noqa
+
 import torch_geometric
 from torch_geometric.utils import to_undirected  # noqa
 
+
 def arg_parse():
     parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter, )
     parser.add_argument(
         '--dataset',
         type=str,
@@ -72,7 +74,7 @@ def arg_parse():
         "--model",
         type=str,
         default='SAGE',
-        choices=['SAGE','GAT','GCN'],
+        choices=['SAGE', 'GAT', 'GCN'],
         help="Model used for training, default GraphSAGE",
     )
     parser.add_argument(
@@ -83,8 +85,9 @@ def arg_parse():
     )
     parser.add_argument('--tempdir_root', type=str, default=None)
     args = parser.parse_args()
-    
+
     return args
+
 
 def create_loader(
     data,
@@ -108,6 +111,7 @@ def create_loader(
         shuffle=shuffle,
     )
 
+
 def train(model, train_loader):
     model.train()
 
@@ -127,6 +131,7 @@ def train(model, train_loader):
 
     return total_loss / total_examples, total_correct / total_examples
 
+
 @torch.no_grad()
 def test(model, loader):
     model.eval()
@@ -141,6 +146,8 @@ def test(model, loader):
         total_examples += y.size(0)
 
     return total_correct / total_examples
+
+
 if __name__ == '__main__':
     args = arg_parse()
     if "papers" in str(args.dataset) and (psutil.virtual_memory().total /
@@ -154,11 +161,11 @@ if __name__ == '__main__':
     print('The root is: ', root)
     dataset = PygNodePropPredDataset(name=args.dataset, root=root)
     split_idx = dataset.get_idx_split()
-    
+
     data = dataset[0]
     if not args.use_directed_graph:
         data.edge_index = to_undirected(data.edge_index, reduce="mean")
-    
+
     graph_store = cugraph_pyg.data.GraphStore()
     graph_store[dict(
         edge_type=('node', 'rel', 'node'),
@@ -166,20 +173,18 @@ if __name__ == '__main__':
         is_sorted=False,
         size=(data.num_nodes, data.num_nodes),
     )] = data.edge_index
-    
+
     feature_store = cugraph_pyg.data.TensorDictFeatureStore()
     feature_store['node', 'x'] = data.x
     feature_store['node', 'y'] = data.y
-    
+
     data = (feature_store, graph_store)
-    
+
     if args.model == "GAT":
         print(f"Training {args.dataset} with GAT model.")
-        model = torch_geometric.nn.models.GAT(dataset.num_features,
-                                              args.hidden_channels,
-                                              args.num_layers,
-                                              dataset.num_classes,
-                                              heads=args.num_gat_conv_heads).cuda()
+        model = torch_geometric.nn.models.GAT(
+            dataset.num_features, args.hidden_channels, args.num_layers,
+            dataset.num_classes, heads=args.num_gat_conv_heads).cuda()
     elif args.model == "GCN":
         print(f"Training {args.dataset} with GCN model.")
         model = torch_geometric.nn.models.GCN(
@@ -198,10 +203,10 @@ if __name__ == '__main__':
         ).cuda()
     else:
         PASS
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-    
-    
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
+                                 weight_decay=args.wd)
+
     with tempfile.TemporaryDirectory(dir=args.tempdir_root) as samples_dir:
         loader_kwargs = dict(
             data=data,
@@ -210,20 +215,20 @@ if __name__ == '__main__':
             batch_size=args.batch_size,
             samples_dir=samples_dir,
         )
-    
+
         train_loader = create_loader(
             input_nodes=split_idx['train'],
             stage_name='train',
             shuffle=True,
             **loader_kwargs,
         )
-    
+
         val_loader = create_loader(
             input_nodes=split_idx['valid'],
             stage_name='val',
             **loader_kwargs,
         )
-    
+
         test_loader = create_loader(
             input_nodes=split_idx['test'],
             stage_name='test',
@@ -231,7 +236,7 @@ if __name__ == '__main__':
         )
         prep_time = round(time.perf_counter() - wall_clock_start, 2)
         print("Total time before training begins (prep_time) =", prep_time,
-                              "seconds")
+              "seconds")
         print("Beginning training...")
         test_accs = []
         val_accs = []
@@ -240,7 +245,7 @@ if __name__ == '__main__':
         inference_times = []
         best_val = best_test = 0.
         start = time.time()
-        epochs = args.epochs 
+        epochs = args.epochs
         for epoch in range(1, epochs + 1):
             train_start = time.time()
             loss, train_acc = train(model, train_loader)
@@ -250,22 +255,22 @@ if __name__ == '__main__':
             train_acc = test(model, train_loader)
             val_acc = test(model, val_loader)
             test_acc = test(model, test_loader)
-    
+
             inference_times.append(time.time() - inference_start)
             test_accs.append(test_acc)
             val_accs.append(val_acc)
             print(f'Epoch {epoch:02d}, Loss: {loss:.4f}, Approx. Train:'
-                    f' {train_acc:.4f} Time: {train_end - train_start:.4f}s')
+                  f' {train_acc:.4f} Time: {train_end - train_start:.4f}s')
             print(f'Train: {train_acc:.4f}, Val: {val_acc:.4f}, '
                   f'Test: {test_acc:.4f}')
-    
+
             times.append(time.time() - train_start)
             if val_acc > best_val:
                 best_val = val_acc
             if test_acc > best_test:
                 best_test = test_acc
-    
-        print("Total time used: is {:.4f}".format(time.time()-start))
+
+        print(f"Total time used: is {time.time()-start:.4f}")
         test_acc = torch.tensor(test_accs)
         val_acc = torch.tensor(val_accs)
         print('============================')
@@ -279,10 +284,10 @@ if __name__ == '__main__':
         print(f'Final Validation: {val_acc.mean():.4f} ± {val_acc.std():.4f}')
         print(f"Best validation accuracy: {best_val:.4f}")
         print(f"Best testing accuracy: {best_test:.4f}")
-        
+
         print("Testing...")
         final_test_acc = test(model, test_loader)
         print(f'Test Accuracy: {final_test_acc:.4f}')
-    
+
     total_time = round(time.perf_counter() - wall_clock_start, 2)
     print("Total Program Runtime (total_time) =", total_time, "seconds")
