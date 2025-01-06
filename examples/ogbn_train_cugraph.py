@@ -29,8 +29,6 @@ enable_spilling()
 from ogb.nodeproppred import PygNodePropPredDataset  # noqa
 from tqdm import tqdm  # noqa
 import torch_geometric # noqa
-
-import torch_geometric
 from torch_geometric.utils import to_undirected  # noqa
 
 
@@ -204,7 +202,7 @@ if __name__ == '__main__':
         ).cuda()
     else:
         pass 
-    
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                  weight_decay=args.wd)
 

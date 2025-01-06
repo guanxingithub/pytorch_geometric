@@ -356,8 +356,8 @@ if __name__ == '__main__':
             dataset.num_classes,
         )
     else:
-        pass 
-    
+        pass
+
     print("Data =", data)
     if args.num_devices < 1:
         world_size = torch.cuda.device_count()
