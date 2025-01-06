@@ -5,9 +5,9 @@ import os
 import os.path as osp
 import tempfile
 import time
-import rmm
-import cupy
 
+import cupy
+import rmm
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -19,8 +19,9 @@ from cugraph.gnn import (
 )
 from ogb.nodeproppred import PygNodePropPredDataset
 from torch.nn.parallel import DistributedDataParallel
+
 import torch_geometric
-from torch_geometric.utils import to_undirected 
+from torch_geometric.utils import to_undirected
 
 # Allow computation on objects that are larger than GPU memory
 # https://docs.rapids.ai/api/cudf/stable/developer_guide/library_design/#spilling-to-host-memory
@@ -30,9 +31,10 @@ os.environ['CUDF_SPILL'] = '1'
 # Allows pytorch to create the context instead
 os.environ['RAPIDS_NO_INITIALIZE'] = '1'
 
+
 def arg_parse():
     parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter, )
     parser.add_argument(
         '--dataset',
         type=str,
@@ -70,7 +72,7 @@ def arg_parse():
         "--model",
         type=str,
         default='GCN',
-        choices=['SAGE','GAT','GCN'],
+        choices=['SAGE', 'GAT', 'GCN'],
         help="Model used for training, default GraphSAGE",
     )
     parser.add_argument(
@@ -95,6 +97,7 @@ def arg_parse():
 
     return args
 
+
 def evaluate(rank, loader, model):
     with torch.no_grad():
         total_correct = total_examples = 0
@@ -114,6 +117,7 @@ def evaluate(rank, loader, model):
         acc = total_correct / total_examples
     return acc
 
+
 def init_pytorch_worker(rank, world_size, cugraph_id):
 
     rmm.reinitialize(
@@ -121,7 +125,6 @@ def init_pytorch_worker(rank, world_size, cugraph_id):
         managed_memory=True,
         pool_allocator=True,
     )
-
 
     cupy.cuda.Device(rank).use()
     from rmm.allocators.cupy import rmm_cupy_allocator
@@ -142,8 +145,8 @@ def init_pytorch_worker(rank, world_size, cugraph_id):
                        device=rank)
 
 
-def run_train(rank, args, data, world_size, cugraph_id, model, 
-        split_idx, num_classes, wall_clock_start, tempdir=None ):
+def run_train(rank, args, data, world_size, cugraph_id, model, split_idx,
+              num_classes, wall_clock_start, tempdir=None):
 
     epochs = args.epochs
     batch_size = args.batch_size
@@ -220,8 +223,8 @@ def run_train(rank, args, data, world_size, cugraph_id, model,
 
     dist.barrier()
 
-    eval_steps = args.eval_steps 
-    warmup_steps = args.warmup_steps 
+    args.eval_steps
+    warmup_steps = args.warmup_steps
     dist.barrier()
     torch.cuda.synchronize()
 
@@ -274,7 +277,7 @@ def run_train(rank, args, data, world_size, cugraph_id, model,
         val_accs.append(val_acc)
         if rank == 0:
             print(f'Epoch {epoch:02d}, Loss: {total_loss:.4f}, Approx. Train:'
-                    f' {train_acc:.4f} Time: {train_end - train_start:.4f}s')
+                  f' {train_acc:.4f} Time: {train_end - train_start:.4f}s')
             print(f'Train: {train_acc:.4f}, Val: {val_acc:.4f}, '
                   f'Test: {test_acc:.4f}')
 
@@ -284,7 +287,7 @@ def run_train(rank, args, data, world_size, cugraph_id, model,
         if test_acc > best_test:
             best_test = test_acc
 
-    print("Total time used for rank: {:02d} is {:.4f}".format(rank, time.time()-start))
+    print(f"Total time used for rank: {rank:02d} is {time.time()-start:.4f}")
     if rank == 0:
         test_acc = torch.tensor(test_accs)
         val_acc = torch.tensor(val_accs)
@@ -299,7 +302,7 @@ def run_train(rank, args, data, world_size, cugraph_id, model,
         print(f'Final Validation: {val_acc.mean():.4f} ± {val_acc.std():.4f}')
         print(f"Best validation accuracy: {best_val:.4f}")
         print(f"Best testing accuracy: {best_test:.4f}")
-    
+
     if rank == 0:
         print("Testing...")
     final_test_acc = evaluate(rank, test_loader, model)
@@ -371,14 +374,14 @@ if __name__ == '__main__':
         if world_size > 1:
             mp.spawn(
                 run_train,
-                args=(args, data, world_size, cugraph_id, model, 
-                      split_idx, dataset.num_classes, wall_clock_start, tempdir),
+                args=(args, data, world_size, cugraph_id, model, split_idx,
+                      dataset.num_classes, wall_clock_start, tempdir),
                 nprocs=world_size,
                 join=True,
             )
         else:
-             run_train(0, args, data, world_size, cugraph_id, model, 
-                      split_idx, dataset.num_classes, wall_clock_start, tempdir)
+            run_train(0, args, data, world_size, cugraph_id, model, split_idx,
+                      dataset.num_classes, wall_clock_start, tempdir)
 
     total_time = round(time.perf_counter() - wall_clock_start, 2)
     print("Total Program Runtime (total_time) =", total_time, "seconds")
