@@ -321,10 +321,6 @@ if __name__ == '__main__':
 
     wall_clock_start = time.perf_counter()
 
-    #from rmm.allocators.torch import rmm_torch_allocator
-    #rmm.reinitialize(pool_allocator=True)
-    #torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
-
     root = osp.join(args.dataset_dir, args.dataset_subdir)
     dataset = PygNodePropPredDataset(name=args.dataset, root=root)
     split_idx = dataset.get_idx_split()
@@ -357,8 +353,8 @@ if __name__ == '__main__':
             dataset.num_classes,
         )
     else:
-        PASS
-
+        pass 
+    
     print("Data =", data)
     if args.num_devices < 1:
         world_size = torch.cuda.device_count()
