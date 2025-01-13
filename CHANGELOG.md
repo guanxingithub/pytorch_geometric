@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- Consolidate ogbn-axix, ogbn-products and ogbn-papers100M basic examples with cugraph single gpu and multiple gpus into ogbn_train_cugraph.py and ogbn_train_cugraph_multigpu.py ([#9919](https://github.com/pyg-team/pytorch_geometric/pull/9919))
+- Consolidate ogbn-arxiv, ogbn-products and ogbn-papers100M basic examples with cugraph single gpu and multiple gpus into ogbn_train_cugraph.py and ogbn_train_cugraph_multigpu.py ([#9919](https://github.com/pyg-team/pytorch_geometric/pull/9919))
 - Consolidate ogbn-products and papers100m basic examples into a single ogbn_train.py with additional improvements ([#9467](https://github.com/pyg-team/pytorch_geometric/pull/9467))
 - Update Dockerfile to use latest from NVIDIA ([#9794](https://github.com/pyg-team/pytorch_geometric/pull/9794))
 - Added various GRetriever Architecture Benchmarking examples ([#9666](https://github.com/pyg-team/pytorch_geometric/pull/9666))
